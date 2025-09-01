@@ -9,9 +9,9 @@ import { ThemeEffect } from "@/components/theme-effect"
 import { Suspense } from "react"
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.app",
+  title: "User Management System",
+  description: "User Management System",
+  generator: "User Management System",
 }
 
 export default function RootLayout({
