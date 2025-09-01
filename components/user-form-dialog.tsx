@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -30,6 +30,7 @@ type Props = {
 export function UserFormDialog({ mode, user, trigger }: Props) {
   const queryClient = useQueryClient()
   const addLog = useActivityLog((s) => s.addEntry)
+  const [open, setOpen] = useState(false)
 
   const defaultValues: FormValues = useMemo(
     () => ({
@@ -58,8 +59,10 @@ export function UserFormDialog({ mode, user, trigger }: Props) {
     onMutate: async (values) => {
       await queryClient.cancelQueries({ queryKey: ["users"] })
       const prev = queryClient.getQueryData<User[]>(["users"]) || []
+      const tempId = Math.max(101, ...prev.map((u) => u.id)) + 1
+
       const optimistic: User = {
-        id: Math.max(101, ...prev.map((u) => u.id)) + 1,
+        id: tempId,
         name: values.name,
         email: values.email,
         phone: values.phone,
@@ -75,13 +78,21 @@ export function UserFormDialog({ mode, user, trigger }: Props) {
         message: `Added user ${values.name}`,
         at: Date.now(),
       })
-      return { prev }
+      return { prev, tempId }
     },
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(["users"], ctx.prev)
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] })
+    onSuccess: (serverUser, _values, ctx) => {
+      if (!serverUser || !ctx?.tempId) return
+      const current = queryClient.getQueryData<User[]>(["users"]) || []
+      const next = current.map((u) =>
+        u.id === ctx.tempId ? { ...serverUser, company: u.company, address: u.address } : u,
+      )
+      queryClient.setQueryData<User[]>(["users"], next)
+
+      form.reset({ name: "", email: "", phone: "", company: "" })
+      setOpen(false)
     },
   })
 
@@ -119,6 +130,9 @@ export function UserFormDialog({ mode, user, trigger }: Props) {
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(["users"], ctx.prev)
     },
+    onSuccess: () => {
+      setOpen(false)
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] })
     },
@@ -130,7 +144,15 @@ export function UserFormDialog({ mode, user, trigger }: Props) {
   }
 
   return (
-    <Dialog>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v)
+        if (v) {
+          form.reset(defaultValues)
+        }
+      }}
+    >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

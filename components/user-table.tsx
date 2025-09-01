@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { fetchUsers } from "@/lib/api"
 import { Input } from "@/components/ui/input"
@@ -33,6 +33,14 @@ export function UserTable() {
   const [sortDir, setSortDir] = useState<SortDir>("asc")
   const [page, setPage] = useState(1)
   const pageSize = 5
+
+  const prevCountRef = useRef<number>(data.length)
+  useEffect(() => {
+    if (data.length > prevCountRef.current) {
+      setPage(1)
+    }
+    prevCountRef.current = data.length
+  }, [data.length])
 
   const companies = useMemo(() => {
     const names = Array.from(new Set(data.map((u) => u.company?.name).filter(Boolean)))
